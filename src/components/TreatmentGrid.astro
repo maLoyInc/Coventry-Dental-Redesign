@@ -1,0 +1,33 @@
+---
+/**
+ * TreatmentGrid — static shell, PRD §6.2.
+ *
+ * Owns the section, the heading and the two-column layout. It holds no state
+ * and ships no JavaScript; the cards it wraps are the islands.
+ *
+ * Four cards, not thirteen (PRD F5, §3.3). The count is guarded in
+ * lib/content.ts, so this component can assume it.
+ */
+interface Props {
+  id: string;
+}
+
+const { id } = Astro.props;
+---
+
+<section id={id} class="u-section" aria-labelledby={`${id}-heading`}>
+  <div class="u-container">
+    <h2 id={`${id}-heading`} class="text-3xl font-bold text-brand-900 md:text-4xl">
+      Four treatments
+    </h2>
+    <p class="mt-3 max-w-prose text-lg text-muted">
+      Thirteen options is a decision cost handed to an anxious person. These
+      four cover the work the practice is built around. Open one to read the
+      detail — you stay on this page and keep your place.
+    </p>
+
+    <ul class="mt-8 grid gap-4 md:grid-cols-2">
+      <slot />
+    </ul>
+  </div>
+</section>

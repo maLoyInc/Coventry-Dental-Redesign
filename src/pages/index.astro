@@ -1,0 +1,231 @@
+---
+/**
+ * The landing page — composition per PRD §6.2.
+ *
+ * This file is the only place that reads content. Every component below
+ * receives what it needs as typed props and fetches nothing (PRD §6.3), which
+ * is what lets any of them be lifted, reordered, or tested in isolation.
+ *
+ * Four of these hydrate — TreatmentCard, EnquiryForm, OpeningStatus and
+ * StickyCta (PRD §6.2). Everything else is HTML and CSS only.
+ */
+import BaseLayout from '../layouts/BaseLayout.astro';
+import DisclaimerBanner from '../components/DisclaimerBanner.astro';
+import Header, { type NavItem } from '../components/Header.astro';
+import Hero from '../components/Hero.astro';
+import ClinicianBlock from '../components/ClinicianBlock.astro';
+import TestimonialRow from '../components/TestimonialRow.astro';
+import PricingTable from '../components/PricingTable.astro';
+import TreatmentGrid from '../components/TreatmentGrid.astro';
+import TreatmentCard from '../components/TreatmentCard.astro';
+import EnquiryForm from '../components/EnquiryForm.astro';
+import OpeningStatus from '../components/OpeningStatus.astro';
+import StickyCta from '../components/StickyCta.astro';
+import EmergencyBand from '../components/EmergencyBand.astro';
+import LogisticsBlock from '../components/LogisticsBlock.astro';
+import FaqAccordion from '../components/FaqAccordion.astro';
+import Footer from '../components/Footer.astro';
+
+import { getImage } from 'astro:assets';
+import { render } from 'astro:content';
+import { practice } from '../data/practice';
+import { heroImage, mapImage, practiceGeo } from '../data/images';
+import { buildDentistJsonLd, serialiseJsonLd } from '../lib/jsonld';
+import {
+  assertTreatmentSlugsMatchContent,
+  getClinician,
+  getFaqs,
+  getOpeningHours,
+  getTestimonials,
+  getTreatments,
+} from '../lib/content';
+
+// Build-time guards. A drift between the form's slug list and the treatments
+// collection fails the build rather than shipping a form that offers a
+// treatment the page does not have (PRD §6.4).
+await assertTreatmentSlugsMatchContent();
+
+const [treatments, testimonials, clinician, faqs, hours] = await Promise.all([
+  getTreatments(),
+  getTestimonials(),
+  getClinician(),
+  getFaqs(),
+  getOpeningHours(),
+]);
+
+/** slug → display name, so TestimonialRow does not look treatments up itself. */
+const treatmentNames = Object.fromEntries(
+  treatments.map((entry) => [entry.id, entry.data.name]),
+);
+
+/**
+ * getCollection returns testimonials in file-key order, which is alphabetical
+ * and arbitrary. Reorder them to match the treatment order the reader has just
+ * scrolled past, so implants-then-All-on-4 reads the same way twice.
+ */
+const treatmentOrder = new Map(treatments.map((entry, index) => [entry.id, index]));
+const orderedTestimonials = [...testimonials].sort(
+  (a, b) =>
+    (treatmentOrder.get(a.data.treatmentSlug.id) ?? 99) -
+    (treatmentOrder.get(b.data.treatmentSlug.id) ?? 99),
+);
+
+/**
+ * detailBody lives in the Markdown body of each treatment file. Rendering it
+ * here rather than inside TreatmentCard keeps the rule in PRD §6.3 intact: the
+ * page reads content, components receive it.
+ */
+const treatmentCards = await Promise.all(
+  treatments.map(async (entry) => ({ entry, Body: (await render(entry)).Content })),
+);
+
+/** Five anchors, no submenus (PRD F4). Booking is the CTA, not a nav item. */
+const nav: NavItem[] = [
+  { href: '#treatments', label: 'Treatments' },
+  { href: '#dentist', label: 'Your dentist' },
+  { href: '#pricing', label: 'Prices' },
+  { href: '#faq', label: 'Questions' },
+  { href: '#find-us', label: 'Find us' },
+];
+
+const BOOK_HREF = '#enquire';
+
+/**
+ * One absolute URL for the hero photograph, used by the JSON-LD `image` and by
+ * og:image. Resolved through getImage so it points at the processed asset the
+ * page actually serves rather than the 1440px original in src/assets.
+ */
+const heroSocial = await getImage({
+  src: heroImage.src,
+  width: 1200,
+  height: 800,
+  format: 'jpeg',
+});
+const heroImageUrl = new URL(heroSocial.src, Astro.site).href;
+
+/**
+ * The one Dentist JSON-LD block (PRD §7.4), built from the same three sources
+ * the visible page is built from — practice facts, the TeamMember record and
+ * the OpeningHours document — so the markup and the page cannot disagree.
+ * No AggregateRating and no prices; lib/jsonld.ts explains why.
+ */
+const dentistJsonLd = serialiseJsonLd(
+  buildDentistJsonLd({
+    practice,
+    clinician: clinician.data,
+    hours,
+    treatments: treatments.map((entry) => entry.data),
+    geo: practiceGeo,
+    pageUrl: new URL('/', Astro.site).href,
+    imageUrl: heroImageUrl,
+  }),
+);
+
+const title = `Dental implants in ${practice.address.locality} — ${practice.wordmark} (concept)`;
+const description =
+  `Concept landing page. Single implants, All-on-4, Invisalign and cosmetic ` +
+  `dentistry with ${clinician.data.name}, ${clinician.data.yearsInPractice} ` +
+  `years in practice in ${practice.address.locality}.`;
+---
+
+<BaseLayout title={title} description={description} ogImage={heroImageUrl}>
+  <script
+    slot="head"
+    type="application/ld+json"
+    is:inline
+    set:html={dentistJsonLd}
+  />
+
+  <DisclaimerBanner
+    slot="banner"
+    practiceName={practice.name}
+    clinicianName={clinician.data.name}
+  />
+
+  <Header
+    slot="header"
+    wordmark={practice.wordmark}
+    nav={nav}
+    phone={practice.phone}
+    bookHref={BOOK_HREF}
+  />
+
+  <Hero
+    clinicianName={clinician.data.name}
+    yearsInPractice={clinician.data.yearsInPractice}
+    locality={practice.address.locality}
+    phone={practice.phone}
+    bookHref={BOOK_HREF}
+    treatmentsHref="#treatments"
+    image={heroImage}
+  />
+
+  <TreatmentGrid id="treatments">
+    {
+      treatmentCards.map(({ entry, Body }) => (
+        <TreatmentCard treatment={entry} enquireHref={BOOK_HREF} group="treatments">
+          <Body />
+        </TreatmentCard>
+      ))
+    }
+  </TreatmentGrid>
+
+  <ClinicianBlock id="dentist" clinician={clinician} />
+
+  <TestimonialRow
+    id="stories"
+    testimonials={orderedTestimonials}
+    treatmentNames={treatmentNames}
+  />
+
+  <PricingTable
+    id="pricing"
+    treatments={treatments}
+    financeNote="Finance is available so treatment can be paid monthly rather than in one go. Subject to status and to a clinical assessment; terms are confirmed in writing before anything is booked."
+  />
+
+  <EnquiryForm
+    id="enquire"
+    treatments={treatments}
+    phone={practice.phone}
+    responseTime="within one working day"
+  />
+
+  <EmergencyBand
+    id="emergency"
+    phone={practice.phone}
+    emergencyNote={hours.emergencyNote}
+    noteIsPlaceholder={hours.isPlaceholder}
+  />
+
+  <LogisticsBlock
+    id="find-us"
+    hours={hours}
+    address={practice.address}
+    directionsUrl={practice.directionsUrl}
+    phone={practice.phone}
+    parking={{
+      text: 'On-site and street parking is available nearby, and the practice is a short walk from local bus routes.',
+      isPlaceholder: true,
+    }}
+    emergencyHref="#emergency"
+    map={mapImage}
+  >
+    <OpeningStatus slot="status" id="opening-status" hours={hours} />
+  </LogisticsBlock>
+
+  <FaqAccordion id="faq" faqs={faqs} />
+
+  <Footer
+    slot="footer"
+    practiceName={practice.name}
+    wordmark={practice.wordmark}
+    phone={practice.phone}
+    email={practice.email}
+    address={practice.address}
+    directionsUrl={practice.directionsUrl}
+    nav={nav}
+  />
+
+  <StickyCta slot="sticky" phone={practice.phone} bookHref={BOOK_HREF} />
+</BaseLayout>

@@ -1,0 +1,20 @@
+{
+  "implant-single-tooth": {
+    "treatmentSlug": "dental-implants",
+    "body": "Placeholder testimonial. I lost a molar years ago and put off doing anything about it. The assessment explained what was involved and what it would cost before I committed to anything. The implant itself was far less of an ordeal than I had built it up to be, and I stopped noticing it within a fortnight.",
+    "attribution": "Placeholder attribution — single implant patient",
+    "isPlaceholder": true
+  },
+  "all-on-4-full-arch": {
+    "treatmentSlug": "all-on-4",
+    "body": "Placeholder testimonial. I had been wearing a lower denture for six years and had stopped eating anything that needed real chewing. Having a fixed bridge fitted the same day the implants went in made the decision much easier to face. Six months on I eat normally and do not think about my teeth.",
+    "attribution": "Placeholder attribution — All-on-4 patient",
+    "isPlaceholder": true
+  },
+  "invisalign-adult": {
+    "treatmentSlug": "invisalign",
+    "body": "Placeholder testimonial. I wanted my front teeth straightened at forty-one without a mouth full of metal at work. The aligners came out for meetings and meals, which was the whole reason I went ahead. It took eleven months and the retainer routine afterwards was explained properly at the start.",
+    "attribution": "Placeholder attribution — Invisalign patient",
+    "isPlaceholder": true
+  }
+}

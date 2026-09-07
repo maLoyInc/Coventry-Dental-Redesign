@@ -1,0 +1,70 @@
+---
+/**
+ * EmergencyBand — PRD F3, §3.8, §5.2 step 3.
+ *
+ * Deliberately the only red thing on the page. Someone in pain has a different
+ * urgency and a different correct action, and the visual separation is what
+ * stops that person being funnelled into a callback form.
+ *
+ * No form, no gate, no callback promise on this path: a heading, a number as a
+ * large tap target, out-of-hours guidance, and NHS 111.
+ */
+import PhoneIcon from './PhoneIcon.astro';
+import { telHref } from '../lib/format';
+
+interface Props {
+  id: string;
+  phone: { e164: string; display: string };
+  /** Out-of-hours guidance, from the opening-hours document. */
+  emergencyNote: string;
+  /** True while that guidance is invented rather than the practice's own. */
+  noteIsPlaceholder: boolean;
+}
+
+const { id, phone, emergencyNote, noteIsPlaceholder } = Astro.props;
+---
+
+<section
+  id={id}
+  class="on-dark bg-urgent-900 text-white"
+  aria-labelledby={`${id}-heading`}
+>
+  <div class="u-container u-section grid gap-6 md:grid-cols-12 md:items-center">
+    <div class="md:col-span-7">
+      <p class="text-sm font-semibold uppercase tracking-[0.1em] text-urgent-100">
+        In pain right now
+      </p>
+      <h2 id={`${id}-heading`} class="mt-2 text-3xl font-bold md:text-4xl">
+        Dental emergency? Call us — don't fill in a form.
+      </h2>
+      <p class="mt-4 max-w-prose text-base leading-relaxed text-urgent-100">
+        {emergencyNote}
+      </p>
+      {
+        noteIsPlaceholder && (
+          <p class="mt-3">
+            <span class="u-placeholder-tag text-urgent-100">
+              Placeholder guidance
+            </span>
+          </p>
+        )
+      }
+    </div>
+
+    <div class="md:col-span-5 md:justify-self-end">
+      <!-- One tap, native dialer, number pre-filled. Sized well past the
+           44px minimum because this is the tap taken one-handed and in pain. -->
+      <a
+        href={telHref(phone.e164)}
+        class="inline-flex min-h-16 w-full items-center justify-center gap-3 rounded-xl bg-white px-6 py-4 text-2xl font-bold text-urgent-700 no-underline hover:bg-urgent-100 md:w-auto md:text-3xl"
+        aria-label={`Call the practice now on ${phone.display}`}
+      >
+        <PhoneIcon class="size-7" />
+        {phone.display}
+      </a>
+      <p class="mt-3 text-sm text-urgent-100 md:text-right">
+        Can't reach us and in pain? Call NHS 111.
+      </p>
+    </div>
+  </div>
+</section>

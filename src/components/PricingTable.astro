@@ -1,0 +1,96 @@
+---
+/**
+ * PricingTable — PRD F12, §3.6, §5.1 step 6.
+ *
+ * Price opacity is the top pre-enquiry drop-off cause in high-value private
+ * treatment, so the numbers are on the page rather than behind a form. Each
+ * one carries its own caveat, because "from £2,500" without "your figure comes
+ * after an assessment" is the kind of half-truth that costs trust later.
+ *
+ * A real <table> with a caption and scoped headers: this is tabular data, and
+ * the semantics are what let a screen reader read "Dental Implants, from,
+ * £2,500" instead of three loose strings.
+ */
+import type { CollectionEntry } from 'astro:content';
+import { formatPrice } from '../lib/format';
+
+interface Props {
+  id: string;
+  treatments: CollectionEntry<'treatments'>[];
+  /** Finance availability line (PRD F12). */
+  financeNote: string;
+}
+
+const { id, treatments, financeNote } = Astro.props;
+---
+
+<section id={id} class="u-section bg-sand" aria-labelledby={`${id}-heading`}>
+  <div class="u-container">
+    <h2 id={`${id}-heading`} class="text-3xl font-bold text-brand-900 md:text-4xl">
+      What it costs
+    </h2>
+    <p class="mt-3 max-w-prose text-lg text-muted">
+      Indicative from-prices. Your figure is confirmed in writing after a
+      clinical assessment, before anything is booked.
+    </p>
+
+    <!--
+      The table is min-w-[36rem], so on a phone this box is the only way to
+      reach the right-hand columns. A scroll container with no focusable child
+      is unreachable by keyboard (WCAG 2.2 AA 2.1.1), so it takes tabindex="0"
+      — and, being focusable, it needs a name, which is what role="region" plus
+      aria-label provide. Caught by axe; Lighthouse scored this page 100 for
+      accessibility with the prices unscrollable without a mouse.
+    -->
+    <div
+      class="mt-8 overflow-x-auto rounded-xl border border-line bg-paper"
+      role="region"
+      aria-label="Indicative prices"
+      tabindex="0"
+    >
+      <table class="w-full min-w-[36rem] border-collapse text-left">
+        <caption class="sr-only">
+          Indicative from-prices for the four treatments, with the caveat that
+          applies to each
+        </caption>
+        <thead>
+          <tr class="border-b border-line bg-brand-50">
+            <th scope="col" class="px-5 py-3 text-sm font-semibold text-brand-800">
+              Treatment
+            </th>
+            <th scope="col" class="px-5 py-3 text-sm font-semibold text-brand-800">
+              From
+            </th>
+            <th scope="col" class="px-5 py-3 text-sm font-semibold text-brand-800">
+              What that covers
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            treatments.map((entry) => (
+              <tr class="border-b border-line last:border-0 align-top">
+                <th
+                  scope="row"
+                  class="px-5 py-4 text-base font-semibold text-ink"
+                >
+                  {entry.data.name}
+                </th>
+                <td class="px-5 py-4 text-lg font-bold whitespace-nowrap text-brand-700">
+                  {formatPrice(entry.data.priceFrom)}
+                </td>
+                <td class="px-5 py-4 text-sm text-muted">
+                  {entry.data.priceCaveat}
+                </td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <p class="mt-5 max-w-prose rounded-lg border border-brand-200 bg-brand-50 p-4 text-sm text-brand-800">
+      {financeNote}
+    </p>
+  </div>
+</section>

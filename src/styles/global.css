@@ -1,0 +1,239 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+ * Design tokens — PRD §2.2.
+ *
+ * The palette is anchored on #1f4955, the teal the placeholder assets are
+ * generated in, so the page and its imagery are one thing rather than two.
+ *
+ * Colour roles are deliberately few:
+ *   brand   teal, structure and the primary CTA
+ *   urgent  deep red, the emergency path and nothing else
+ * Two roles means "book" and "call 999-now" can never be confused for each
+ * other, which is the whole point of PRD §3.8.
+ *
+ * Every pairing on the page clears WCAG 2.2 AA, measured rather than assumed:
+ * white on brand-700 9.8:1, white on urgent-900 13.4:1, ink on paper 15.7:1,
+ * muted on paper 6.7:1, muted on sand 6.2:1, brand-300 on brand-900 7.3:1.
+ * The 3:1 non-text rule drives brand-500 for the secondary button border
+ * (5.4:1) and the focus ring; --color-line is decorative rule-work only, never
+ * the sole boundary of a control.
+ * ------------------------------------------------------------------------ */
+@theme {
+  --color-brand-50: #f1f7f8;
+  --color-brand-100: #dceaee;
+  --color-brand-200: #bcd6dd;
+  --color-brand-300: #8fb8c4;
+  --color-brand-400: #5c93a4;
+  --color-brand-500: #3a7285;
+  --color-brand-600: #2b5d6d;
+  --color-brand-700: #1f4955;
+  --color-brand-800: #193e47;
+  --color-brand-900: #10262d;
+  --color-brand-950: #0a1a1f;
+
+  --color-urgent-100: #fdecea;
+  --color-urgent-600: #b3261e;
+  --color-urgent-700: #991b1b;
+  --color-urgent-900: #5c1414;
+
+  --color-ink: #10262d;
+  --color-muted: #4a5f66;
+  --color-paper: #ffffff;
+  --color-sand: #f7f5f1;
+  --color-line: #dbe4e6;
+
+  /* Self-hosted subset WOFF2 is the PRD §6.5 intent; until those files exist
+   * the stack is the platform UI font, which costs zero requests and needs no
+   * font-display fallback of its own. */
+  --font-sans:
+    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+
+  --text-display: 2.25rem;
+  --text-display--line-height: 1.1;
+  --text-display--letter-spacing: -0.02em;
+}
+
+/* ---------------------------------------------------------------------------
+ * Base
+ * ------------------------------------------------------------------------ */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    /* Anchors must not land under the sticky header (PRD F4). */
+    scroll-padding-top: 5.5rem;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    /* 16px floor stops iOS zooming the page when a field takes focus. */
+    font-size: 1rem;
+    line-height: 1.6;
+    /* 320px upwards with no horizontal scroll (PRD §2.2). */
+    overflow-x: hidden;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+    letter-spacing: -0.015em;
+    line-height: 1.15;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /*
+   * The browser's own [hidden] rule loses to any author `display`, and three
+   * things on this page are hidden by script while carrying one: the enquiry
+   * form (display:grid), its confirmation panel, and the opening-status pill
+   * (display:inline-flex). Without this, `el.hidden = true` would do nothing.
+   */
+  [hidden] {
+    display: none !important;
+  }
+
+  /* One visible focus treatment for every interactive element, everywhere. */
+  :focus-visible {
+    outline: 3px solid var(--color-brand-500);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* Dark surfaces need the light-side focus ring to stay visible. */
+  .on-dark :focus-visible {
+    outline-color: var(--color-brand-200);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Component primitives
+ *
+ * Buttons and the section shell are used by nearly every component, so they
+ * live here rather than being re-typed as a dozen identical class lists.
+ * Every button clears the 44 x 44px tap target in PRD §2.2.
+ * ------------------------------------------------------------------------ */
+@layer components {
+  .u-container {
+    width: 100%;
+    max-width: 72rem;
+    margin-inline: auto;
+    padding-inline: 1.25rem;
+  }
+
+  @media (min-width: 768px) {
+    .u-container {
+      padding-inline: 2rem;
+    }
+  }
+
+  .u-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 3rem;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    font-size: 1rem;
+    line-height: 1.2;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 150ms ease, color 150ms ease,
+      border-color 150ms ease;
+  }
+
+  .u-btn-primary {
+    background-color: var(--color-brand-700);
+    color: #fff;
+    border: 2px solid var(--color-brand-700);
+  }
+
+  .u-btn-primary:hover {
+    background-color: var(--color-brand-800);
+    border-color: var(--color-brand-800);
+  }
+
+  .u-btn-secondary {
+    background-color: transparent;
+    color: var(--color-brand-800);
+    /* The border is this button's only boundary, so it carries the 3:1
+     * non-text requirement on its own. brand-300 measured 2.1:1 and failed. */
+    border: 2px solid var(--color-brand-500);
+  }
+
+  .u-btn-secondary:hover {
+    border-color: var(--color-brand-700);
+    background-color: var(--color-brand-50);
+  }
+
+  /* Same two roles inverted, for use on the dark panels. */
+  .on-dark .u-btn-primary {
+    background-color: #fff;
+    color: var(--color-brand-900);
+    border-color: #fff;
+  }
+
+  .on-dark .u-btn-primary:hover {
+    background-color: var(--color-brand-100);
+    border-color: var(--color-brand-100);
+  }
+
+  .on-dark .u-btn-secondary {
+    color: #fff;
+    border-color: var(--color-brand-400);
+  }
+
+  .on-dark .u-btn-secondary:hover {
+    border-color: #fff;
+    background-color: rgb(255 255 255 / 0.08);
+  }
+
+  .u-section {
+    padding-block: 3.5rem;
+  }
+
+  @media (min-width: 768px) {
+    .u-section {
+      padding-block: 5rem;
+    }
+  }
+
+  /* The "this is a concept, not the real practice" marker. Used wherever a
+   * value on the page is invented rather than factual (PRD §2.3). */
+  .u-placeholder-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border: 1px dashed currentColor;
+    border-radius: 999px;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+}

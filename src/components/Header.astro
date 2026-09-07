@@ -1,0 +1,90 @@
+---
+/**
+ * Header — PRD F2, F4.
+ *
+ * Five anchors, no submenus, all on-page. The old site's 13 top-level items
+ * plus a 13-item submenu are the decision cost this replaces.
+ *
+ * Sticky at every breakpoint with the booking CTA inside it, which is the
+ * desktop half of the persistent-affordance requirement; the mobile half is
+ * StickyCta. On mobile the nav is a single horizontally scrollable row rather
+ * than a hamburger, so the menu costs no JavaScript and no focus trap.
+ */
+import PhoneIcon from './PhoneIcon.astro';
+import { telHref } from '../lib/format';
+
+export interface NavItem {
+  href: string;
+  label: string;
+}
+
+interface Props {
+  wordmark: string;
+  /** Anchors only, five at most (PRD F4). */
+  nav: NavItem[];
+  phone: { e164: string; display: string };
+  /** Where "Book a consultation" points. */
+  bookHref: string;
+}
+
+const { wordmark, nav, phone, bookHref } = Astro.props;
+
+if (nav.length > 5) {
+  throw new Error(
+    `[Header] PRD F4 allows 5 nav items at most, received ${nav.length}`,
+  );
+}
+---
+
+<header
+  class="sticky top-0 z-40 border-b border-line bg-paper/95 backdrop-blur-sm"
+>
+  <div class="u-container flex items-center gap-3 py-2.5 md:gap-6 md:py-3">
+    <!-- Neutral wordmark. The practice's real logo is not reproduced (PRD §2.3). -->
+    <a
+      href="#top"
+      class="shrink-0 text-lg font-bold tracking-tight text-brand-800 no-underline md:text-xl"
+    >
+      {wordmark}
+    </a>
+
+    <nav
+      class="min-w-0 flex-1 overflow-x-auto md:overflow-visible"
+      aria-label="Sections of this page"
+    >
+      <ul class="flex items-center gap-1 whitespace-nowrap md:justify-end md:gap-2">
+        {
+          nav.map((item) => (
+            <li>
+              <a
+                href={item.href}
+                class="inline-flex min-h-11 items-center rounded-md px-2.5 text-sm font-medium text-muted no-underline hover:bg-brand-50 hover:text-brand-800 md:px-3"
+              >
+                {item.label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+
+    <div class="flex shrink-0 items-center gap-2">
+      <!-- Emergency path stays reachable from the header, and stays a tel:
+           link rather than a scroll (PRD F3). Icon-only below md, where the
+           label would push the booking CTA off screen. -->
+      <a
+        href={telHref(phone.e164)}
+        class="u-btn u-btn-secondary min-h-11 px-3 md:px-4"
+        aria-label={`Call the practice on ${phone.display}`}
+      >
+        <PhoneIcon />
+        <span class="hidden lg:inline">{phone.display}</span>
+      </a>
+
+      <a href={bookHref} class="u-btn u-btn-primary hidden min-h-11 sm:inline-flex">
+        <span class="md:hidden">Book</span>
+        <span class="hidden md:inline">Book a consultation</span>
+      </a>
+    </div>
+  </div>
+</header>

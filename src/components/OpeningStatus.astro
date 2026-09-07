@@ -1,0 +1,216 @@
+---
+/**
+ * OpeningStatus — ISLAND, PRD §3.9, F10.
+ *
+ * The one value on this page that cannot be resolved at build time: "are they
+ * open right now" depends on when the page is read, not when it was built. A
+ * prerendered pill would be wrong for all but a few minutes of its life.
+ *
+ * So it renders empty and hidden, and the script fills it in. With JavaScript
+ * off nothing appears — deliberately, because a missing pill costs the reader
+ * a glance at the hours table directly beneath it, and a stale pill costs them
+ * a wasted journey.
+ *
+ * The schedule is emitted as JSON rather than recomputed from the DOM: the
+ * table below is presentation, this is data, and reading "9.00am to 5.30pm"
+ * back out of a table cell would be a parser nobody should have to maintain.
+ * It is the same OpeningHours document, so the pill and the table cannot
+ * disagree (PRD §7.1).
+ */
+import type { OpeningHours } from '../lib/types';
+
+interface Props {
+  id: string;
+  hours: OpeningHours;
+}
+
+const { id, hours } = Astro.props;
+
+/** Only what the calculation needs — not the phone number or the source note. */
+const schedule = {
+  timezone: hours.timezone,
+  regular: hours.regular.map((day) => ({
+    day: day.day,
+    closed: day.closed,
+    opens: day.opens,
+    closes: day.closes,
+  })),
+  exceptions: hours.exceptions.map((exception) => ({
+    date: exception.date,
+    closed: exception.closed,
+    opens: exception.opens,
+    closes: exception.closes,
+    note: exception.note,
+  })),
+};
+---
+
+<span
+  id={id}
+  class="u-opening-status"
+  data-opening-status
+  data-schedule={JSON.stringify(schedule)}
+  hidden></span>
+
+<style>
+  /* Written here rather than applied by the script, so the pill arrives with
+   * its size already reserved and does not shift the heading next to it. */
+  .u-opening-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4375rem;
+    border-radius: 999px;
+    border: 1px solid var(--color-line);
+    background-color: var(--color-sand);
+    padding: 0.25rem 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-muted);
+    white-space: nowrap;
+  }
+
+  .u-opening-status::before {
+    content: "";
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    border: 2px solid currentColor;
+  }
+
+  .u-opening-status[data-open="true"] {
+    border-color: var(--color-brand-300);
+    background-color: var(--color-brand-100);
+    color: var(--color-brand-900);
+  }
+
+  .u-opening-status[data-open="true"]::before {
+    background-color: var(--color-brand-700);
+    border-color: var(--color-brand-700);
+  }
+</style>
+
+<script>
+  type Day = {
+    day: string;
+    closed: boolean;
+    opens?: string;
+    closes?: string;
+  };
+
+  type Schedule = {
+    timezone: string;
+    regular: Day[];
+    exceptions: (Day & { date: string; note: string })[];
+  };
+
+  const pill = document.querySelector<HTMLElement>('[data-opening-status]');
+  const raw = pill?.dataset.schedule;
+
+  if (pill && raw) {
+    const schedule: Schedule = JSON.parse(raw);
+
+    const WEEK = [
+      'sunday',
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday',
+    ];
+
+    /**
+     * The clock that matters is the practice's, not the reader's. Someone
+     * comparing providers on a phone still set to another timezone should see
+     * the same answer as someone standing outside the door, and Intl handles
+     * the BST switch that a fixed offset would get wrong twice a year.
+     */
+    const londonNow = () => {
+      const parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: schedule.timezone,
+        weekday: 'long',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      }).formatToParts(new Date());
+
+      const get = (type: Intl.DateTimeFormatPartTypes) =>
+        parts.find((part) => part.type === type)?.value ?? '';
+
+      // "24" at midnight on some engines; normalise so string comparison holds.
+      const hour = get('hour') === '24' ? '00' : get('hour');
+
+      return {
+        weekday: get('weekday').toLowerCase(),
+        date: `${get('year')}-${get('month')}-${get('day')}`,
+        time: `${hour}:${get('minute')}`,
+      };
+    };
+
+    /** Times are "HH:MM", so plain string comparison is the whole calculation. */
+    const hoursFor = (weekday: string, date: string): Day => {
+      const exception = schedule.exceptions.find((entry) => entry.date === date);
+      if (exception) return exception;
+      return (
+        schedule.regular.find((entry) => entry.day === weekday) ?? {
+          day: weekday,
+          closed: true,
+        }
+      );
+    };
+
+    /** "09:00" → "9.00am". Same rule as lib/format.ts, six lines to avoid an import. */
+    const label = (time: string) => {
+      const [rawHour, minute] = time.split(':');
+      const hour24 = Number(rawHour);
+      const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+      return `${hour12}.${minute}${hour24 < 12 ? 'am' : 'pm'}`;
+    };
+
+    const now = londonNow();
+    const todayIndex = WEEK.indexOf(now.weekday);
+    const today = hoursFor(now.weekday, now.date);
+
+    const isOpen =
+      !today.closed &&
+      !!today.opens &&
+      !!today.closes &&
+      now.time >= today.opens &&
+      now.time < today.closes;
+
+    if (isOpen) {
+      pill.dataset.open = 'true';
+      pill.textContent = `Open now — until ${label(today.closes!)}`;
+    } else {
+      pill.dataset.open = 'false';
+
+      // Still today, just early? Otherwise walk forward for the next open day.
+      // Seven steps at most, and only exceptions dated that far ahead matter.
+      let next = '';
+
+      if (!today.closed && today.opens && now.time < today.opens) {
+        next = `opens ${label(today.opens)}`;
+      } else {
+        const base = new Date(`${now.date}T12:00:00Z`);
+        for (let ahead = 1; ahead <= 7; ahead += 1) {
+          const then = new Date(base.getTime() + ahead * 86_400_000);
+          const weekday = WEEK[(todayIndex + ahead) % 7]!;
+          const day = hoursFor(weekday, then.toISOString().slice(0, 10));
+
+          if (!day.closed && day.opens) {
+            const name = ahead === 1 ? 'tomorrow' : weekday[0]!.toUpperCase() + weekday.slice(1);
+            next = `opens ${name} ${label(day.opens)}`;
+            break;
+          }
+        }
+      }
+
+      pill.textContent = next ? `Closed — ${next}` : 'Closed';
+    }
+
+    pill.hidden = false;
+  }
+</script>

@@ -1,0 +1,40 @@
+---
+/**
+ * DisclaimerBanner — PRD F11, §2.3.
+ *
+ * Persistent and non-dismissible: there is no close button and no JavaScript,
+ * so it cannot be dismissed by accident or by design. It sits above the header
+ * in the source order, which is also where a screen reader meets it, because
+ * "this is not the real practice" is the first thing anyone needs to know.
+ */
+
+interface Props {
+  /** The real practice named in the concept. */
+  practiceName: string;
+  /** The clinician named in the concept. */
+  clinicianName: string;
+}
+
+const { practiceName, clinicianName } = Astro.props;
+---
+
+<aside
+  class="on-dark bg-brand-900 text-brand-100"
+  role="note"
+  aria-label="Concept disclaimer"
+>
+  <div class="u-container py-3">
+    <p class="text-[0.8125rem] leading-relaxed">
+      <span class="u-placeholder-tag text-brand-200 align-middle me-1">
+        Concept
+      </span>
+      <strong class="font-semibold text-white">
+        Independent design concept — not affiliated with {practiceName}.
+      </strong>
+      Not commissioned, reviewed, or endorsed by the practice, {clinicianName},
+      or any related party. Photography is licensed stock, testimonials are
+      invented, and opening hours are indicative. Business details are
+      reproduced factually from public sources.
+    </p>
+  </div>
+</aside>

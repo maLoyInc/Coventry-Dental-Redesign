@@ -1,0 +1,107 @@
+---
+/**
+ * StickyCta — ISLAND, PRD F2, §3.1, §5.1 step 2.
+ *
+ * The mobile half of the persistent booking affordance; the header CTA is the
+ * desktop half, so this hides from md up rather than stacking two of the same
+ * thing on one screen.
+ *
+ * A high-consideration decision involves long scrolls and repeat visits, and
+ * the moment of readiness is unpredictable — so booking has to be one tap away
+ * from anywhere, and the call link has to sit beside it for the reader whose
+ * urgency is pain rather than planning (PRD §5.2 step 2).
+ *
+ * The bar is in the HTML and visible by default, which is what a reader with
+ * no JavaScript gets: a permanently docked pair of buttons, slightly redundant
+ * in the first viewport, entirely functional. The island's only job is to hold
+ * it back until the hero's own buttons have scrolled away, so the two are
+ * never on screen together.
+ */
+import PhoneIcon from './PhoneIcon.astro';
+import { telHref } from '../lib/format';
+
+interface Props {
+  phone: { e164: string; display: string };
+  bookHref: string;
+}
+
+const { phone, bookHref } = Astro.props;
+---
+
+<!--
+  Fixed rather than sticky: the bar belongs to the viewport, not to any section,
+  and a sticky element cannot outlive its parent's scroll box.
+-->
+<div
+  class="u-sticky-cta md:hidden"
+  data-sticky-cta
+  data-visible="true"
+  aria-label="Booking actions"
+  role="region"
+>
+  <div class="flex items-center gap-2 px-4 py-3">
+    <a href={bookHref} class="u-btn u-btn-primary min-w-0 flex-1">
+      Book a consultation
+    </a>
+    <a
+      href={telHref(phone.e164)}
+      class="u-btn u-btn-secondary size-12 shrink-0 bg-paper px-0"
+      aria-label={`Call the practice on ${phone.display}`}
+    >
+      <PhoneIcon />
+    </a>
+  </div>
+</div>
+
+<!-- Scroll room, so the bar never rests on top of the last line of the footer. -->
+<div class="h-20 md:hidden" aria-hidden="true"></div>
+
+<style>
+  .u-sticky-cta {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 45;
+    border-top: 1px solid var(--color-line);
+    background-color: color-mix(in srgb, var(--color-paper) 96%, transparent);
+    backdrop-filter: blur(6px);
+    /* Home-indicator gutter on iOS; zero everywhere else. */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    transition: transform 200ms ease, visibility 200ms;
+  }
+
+  /*
+   * Only an enhanced bar ever hides. Without the script the attribute is never
+   * written, this rule never matches, and the bar simply stays put.
+   * visibility, not opacity: a bar you cannot see must not be a tab stop.
+   */
+  .u-sticky-cta[data-enhanced][data-visible="false"] {
+    transform: translateY(100%);
+    visibility: hidden;
+  }
+</style>
+
+<script>
+  const bar = document.querySelector<HTMLElement>('[data-sticky-cta]');
+  const sentinel = document.querySelector('[data-sticky-sentinel]');
+
+  // No sentinel, or a browser without IntersectionObserver, leaves the bar in
+  // its default always-visible state. That is the degraded case and it works.
+  if (bar && sentinel && 'IntersectionObserver' in window) {
+    bar.dataset.enhanced = '';
+    bar.dataset.visible = 'false';
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry) return;
+        // Show once the hero's own buttons are gone, and keep it shown to the
+        // end of the page (PRD F2) — including when the reader scrolls back up
+        // past the hero, where the hero buttons take over again.
+        bar.dataset.visible = entry.isIntersecting ? 'false' : 'true';
+      },
+      { rootMargin: '0px', threshold: 0 },
+    );
+
+    observer.observe(sentinel);
+  }
+</script>

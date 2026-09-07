@@ -1,0 +1,56 @@
+---
+/**
+ * FaqAccordion — PRD F14, §3.10.
+ *
+ * Four questions: pain, cost, duration, longevity. Those are the four things a
+ * nervous adult is actually asking, and the schema enforces one entry each.
+ *
+ * Native <details>/<summary>. No disclosure JavaScript, no ARIA to get wrong,
+ * keyboard and screen-reader support for zero bytes — and the answers are in
+ * the HTML, so they are findable and indexable whether or not anyone opens
+ * them. The first is open by default so the section is not four closed bars.
+ */
+import type { CollectionEntry } from 'astro:content';
+
+interface Props {
+  id: string;
+  faqs: CollectionEntry<'faq'>[];
+}
+
+const { id, faqs } = Astro.props;
+---
+
+<section id={id} class="u-section" aria-labelledby={`${id}-heading`}>
+  <div class="u-container max-w-3xl">
+    <h2 id={`${id}-heading`} class="text-3xl font-bold text-brand-900 md:text-4xl">
+      The four questions everyone asks
+    </h2>
+
+    <div class="mt-8 divide-y divide-line rounded-xl border border-line">
+      {
+        faqs.map((entry, index) => (
+          <details class="group" open={index === 0} name={`${id}-group`}>
+            <summary class="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-lg font-semibold text-brand-900 hover:bg-brand-50 [&::-webkit-details-marker]:hidden">
+              {entry.data.question}
+              <svg
+                class="size-5 shrink-0 text-brand-600 transition-transform group-open:rotate-45"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </summary>
+            <div class="px-5 pb-5 text-base leading-relaxed text-muted">
+              {entry.data.answer}
+            </div>
+          </details>
+        ))
+      }
+    </div>
+  </div>
+</section>

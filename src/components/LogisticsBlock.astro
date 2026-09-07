@@ -1,0 +1,217 @@
+---
+/**
+ * LogisticsBlock — PRD F10, §3.9, §5.1.
+ *
+ * Hours, address, parking, a map and a directions link. None of it is
+ * persuasion; it removes the reasons a patient who has already decided stalls.
+ *
+ * The live open/closed pill is the one part of this that cannot be resolved at
+ * build time — "open now" depends on when the page is read, not when it was
+ * built — so it arrives through the `status` slot as the OpeningStatus island.
+ * The hours table underneath is the no-JavaScript answer to the same question
+ * and renders either way.
+ *
+ * The map is an image, never the Maps JavaScript API, which would exceed the
+ * entire JavaScript budget on its own (PRD §6.5).
+ */
+import { Image } from 'astro:assets';
+import { formatDay, formatHours, telHref } from '../lib/format';
+import type { ImageRef, OpeningHours } from '../lib/types';
+
+interface Props {
+  id: string;
+  hours: OpeningHours;
+  address: {
+    street: string;
+    locality: string;
+    postalCode: string;
+  };
+  directionsUrl: string;
+  phone: { e164: string; display: string };
+  /** Parking guidance. Marked when it is invented rather than the practice's. */
+  parking: { text: string; isPlaceholder: boolean };
+  /** Anchor for the emergency band, so out-of-hours is one tap from the table. */
+  emergencyHref: string;
+  /**
+   * Static map tile (PRD F10, §6.5). Its `credit` is rendered under the image,
+   * not just recorded in /CREDITS.md, because the map's licence requires the
+   * attribution to be visible.
+   */
+  map: ImageRef;
+}
+
+const { id, hours, address, directionsUrl, phone, parking, emergencyHref, map } =
+  Astro.props;
+
+// Only used to mark today's row in the table. Rendering the table itself does
+// not depend on it, so a stale build never shows the wrong hours — just the
+// wrong row highlighted, which the live pill in the `status` slot corrects.
+const todayIndex = new Date().getDay();
+const week = [
+  'sunday',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+];
+const today = week[todayIndex];
+---
+
+<section id={id} class="u-section bg-sand" aria-labelledby={`${id}-heading`}>
+  <div class="u-container">
+    <h2 id={`${id}-heading`} class="text-3xl font-bold text-brand-900 md:text-4xl">
+      Finding us
+    </h2>
+
+    <div class="mt-8 grid gap-8 lg:grid-cols-12 lg:gap-12">
+      <!-- Hours -->
+      <div class="lg:col-span-5">
+        <div class="flex flex-wrap items-center gap-3">
+          <h3 class="text-lg font-semibold text-brand-900">Opening hours</h3>
+          <!-- OpeningStatus island mounts here (PRD §6.2). -->
+          <slot name="status" />
+        </div>
+
+        {
+          hours.isPlaceholder && (
+            <p class="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+              <span class="u-placeholder-tag">Indicative</span>
+              <span class="ms-2 align-middle">
+                These times are invented for the concept and are to be
+                confirmed. The live site does not publish opening hours.
+              </span>
+            </p>
+          )
+        }
+
+        <table class="mt-4 w-full border-collapse text-left text-base">
+          <caption class="sr-only">Opening hours, Monday to Sunday</caption>
+          <tbody>
+            {
+              hours.regular.map((day) => (
+                <tr
+                  class:list={[
+                    'border-b border-line last:border-0',
+                    day.day === today && 'font-semibold text-brand-900',
+                  ]}
+                >
+                  <th scope="row" class="py-2.5 pe-4 font-normal">
+                    {formatDay(day.day)}
+                    {day.day === today && (
+                      <span class="ms-2 text-xs font-semibold uppercase tracking-wide text-brand-600">
+                        Today
+                      </span>
+                    )}
+                  </th>
+                  <td
+                    class:list={[
+                      'py-2.5 text-right whitespace-nowrap',
+                      day.closed ? 'text-muted' : 'text-ink',
+                    ]}
+                  >
+                    {
+                      day.closed || !day.opens || !day.closes ? (
+                        formatHours(day)
+                      ) : (
+                        <>
+                          <time datetime={day.opens}>{formatHours(day)}</time>
+                        </>
+                      )
+                    }
+                  </td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+
+        <p class="mt-4 text-sm text-muted">
+          Closed right now and in pain?
+          <a href={emergencyHref} class="text-brand-700 underline underline-offset-2">
+            Out-of-hours guidance
+          </a>
+        </p>
+      </div>
+
+      <!-- Address, parking, map -->
+      <div class="lg:col-span-7">
+        <h3 class="text-lg font-semibold text-brand-900">Where we are</h3>
+
+        <address class="mt-3 text-base not-italic leading-relaxed text-ink">
+          {address.street}<br />
+          {address.locality}<br />
+          {address.postalCode}
+        </address>
+
+        <p class="mt-3 text-sm text-muted">
+          {parking.text}
+          {
+            parking.isPlaceholder && (
+              <span class="u-placeholder-tag ms-2 align-middle">
+                Placeholder
+              </span>
+            )
+          }
+        </p>
+
+        <!-- A picture of a map, not a map (PRD §6.5). The Maps JavaScript API
+             would exceed the whole JavaScript budget on its own to deliver
+             pan and zoom that nobody checking an address needs; the directions
+             link below hands off to a real map when one is actually wanted.
+
+             Astro emits width and height from the file, so the space is
+             reserved before the bytes arrive and this contributes nothing to
+             CLS (PRD §2.2). It is far below the fold, so it loads lazily. -->
+        <figure class="mt-5">
+          <Image
+            src={map.src}
+            alt={map.alt}
+            widths={[520, 800]}
+            width={800}
+            sizes="(min-width: 1152px) 615px, (min-width: 1024px) calc(58.33vw - 57px), (min-width: 768px) calc(100vw - 4rem), calc(100vw - 2.5rem)"
+            quality={60}
+            loading="lazy"
+            decoding="async"
+            class="w-full rounded-xl border border-line"
+          />
+          <figcaption class="mt-2 text-xs text-muted">
+            {map.credit}
+            {
+              map.sourceUrl && (
+                <>
+                  {' · '}
+                  <a
+                    href="https://www.openstreetmap.org/copyright"
+                    class="underline underline-offset-2"
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    Licence
+                    <span class="sr-only">(opens in a new tab)</span>
+                  </a>
+                </>
+              )
+            }
+          </figcaption>
+        </figure>
+
+        <div class="mt-5 flex flex-col gap-3 sm:flex-row">
+          <a
+            href={directionsUrl}
+            class="u-btn u-btn-secondary"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            Get directions
+            <span class="sr-only">(opens in a new tab)</span>
+          </a>
+          <a href={telHref(phone.e164)} class="u-btn u-btn-secondary">
+            Call {phone.display}
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

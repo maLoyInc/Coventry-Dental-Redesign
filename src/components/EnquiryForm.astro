@@ -1,0 +1,664 @@
+---
+/**
+ * EnquiryForm — ISLAND, PRD F7-F9, §3.7, §5.1 steps 7-8.
+ *
+ * Five fields and a consent box. Nothing else: every extra field costs
+ * completions, and a callback needs no more than this.
+ *
+ * The HTML below is a working form on its own — real method, real action, real
+ * labels, native constraint attributes, a real submit button. With JavaScript
+ * off it POSTs to /api/enquiry, the browser enforces `required` / `type` /
+ * `pattern` itself, and the endpoint replies with an HTML page (PRD §5.1).
+ *
+ * The island only upgrades that path. It does NOT ship a validator: the
+ * constraints live in the markup, the browser evaluates them, and the script
+ * reads `control.validity` to decide which sentence to write into the field's
+ * error slot.
+ *
+ * On PRD §6.4 ("client and server share one schema"). They no longer share a
+ * module. What they share is the wire: when the server rejects a field it names
+ * it, and the reply's messages are painted into these same slots. The server's
+ * schema is therefore still the only definition of valid — the client stops
+ * holding a second opinion, and the page stops paying ~77 KB to carry one.
+ */
+import type { CollectionEntry } from 'astro:content';
+import { PREFERRED_TIMES } from '../lib/slugs';
+import { telHref } from '../lib/format';
+
+interface Props {
+  id: string;
+  treatments: CollectionEntry<'treatments'>[];
+  phone: { e164: string; display: string };
+  /** Stated in the confirmation, so the promise is specific (PRD F9). */
+  responseTime: string;
+}
+
+const { id, treatments, phone, responseTime } = Astro.props;
+
+const TIME_LABELS: Record<(typeof PREFERRED_TIMES)[number], string> = {
+  morning: 'Morning',
+  afternoon: 'Afternoon',
+  evening: 'Evening',
+  any: 'Any time',
+};
+
+/**
+ * Turnstile (PRD §6.5). Public by definition — the browser reads it — so it is
+ * a PUBLIC_ build-time variable, not a runtime secret. Absent, the widget does
+ * not render and the endpoint rejects every submission, which is the correct
+ * direction for a bot check to fail in.
+ */
+const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '';
+if (!turnstileSiteKey) {
+  console.warn(
+    '[EnquiryForm] PUBLIC_TURNSTILE_SITE_KEY is not set — the bot-check widget ' +
+      'will not render and /api/enquiry will reject submissions. See .env.example.',
+  );
+}
+
+/** Labels sit above their control and stay visible — never a placeholder (PRD §2.2). */
+const labelClass = 'block text-sm font-semibold text-brand-900';
+const controlClass =
+  'mt-1.5 block w-full min-h-12 rounded-lg border-2 border-line bg-paper px-3.5 py-2.5 text-base text-ink aria-[invalid=true]:border-urgent-600 focus:border-brand-500';
+
+/**
+ * The error slot is a live region, so it must never be `display:none` — a
+ * region hidden at the moment it gains content is announced unreliably. It
+ * stays in the flow holding no text, which is why the margin is conditional
+ * rather than the element.
+ */
+const errorClass = 'text-sm font-medium text-urgent-700 [&:not(:empty)]:mt-1.5';
+---
+
+<section id={id} class="u-section bg-paper" aria-labelledby={`${id}-heading`}>
+  <div class="u-container max-w-2xl">
+    <h2 id={`${id}-heading`} class="text-3xl font-bold text-brand-900 md:text-4xl">
+      Book a consultation
+    </h2>
+    <p class="mt-3 text-lg text-muted">
+      Five questions. We call you back {responseTime} to arrange a time. There
+      is no cost and no commitment at this stage.
+    </p>
+
+    <!--
+      Confirmation state (PRD F9). It ships in the HTML rather than being built
+      by the script, so there is nothing to construct at the one moment the
+      reader is waiting; tabindex="-1" so focus can be moved to it when the
+      form it replaces disappears.
+    -->
+    <div
+      id={`${id}-confirmation`}
+      class="mt-8 rounded-xl border-2 border-brand-300 bg-brand-50 p-6"
+      tabindex="-1"
+      hidden
+      data-enquiry-confirmation
+    >
+      <h3 class="text-xl font-bold text-brand-900">Thank you — that is with us.</h3>
+      <p class="mt-3 text-base text-brand-800">
+        We will call you back {responseTime}. If you would rather not wait, or
+        you are in pain now, call us instead.
+      </p>
+      <a href={telHref(phone.e164)} class="u-btn u-btn-primary mt-5">
+        Call {phone.display}
+      </a>
+    </div>
+
+    <form
+      id={`${id}-form`}
+      class="mt-8 grid gap-5"
+      method="post"
+      action="/api/enquiry"
+      data-enquiry-form
+    >
+      <!--
+        Treatment. Pre-filled from the shared store when the reader arrived from
+        a treatment card (PRD §5.1 step 7); an ordinary select otherwise.
+      -->
+      <div>
+        <label class={labelClass} for={`${id}-treatmentSlug`}>
+          What are you interested in?
+        </label>
+        <select
+          id={`${id}-treatmentSlug`}
+          class={controlClass}
+          name="treatmentSlug"
+          required
+          aria-describedby={`${id}-treatmentSlug-error`}
+        >
+          <option value="">Choose a treatment</option>
+          {treatments.map((entry) => <option value={entry.id}>{entry.data.name}</option>)}
+        </select>
+        <p
+          id={`${id}-treatmentSlug-error`}
+          class={errorClass}
+          aria-live="polite"
+          data-error-for="treatmentSlug"
+        >
+        </p>
+      </div>
+
+      <div>
+        <label class={labelClass} for={`${id}-name`}>Your name</label>
+        <input
+          id={`${id}-name`}
+          class={controlClass}
+          name="name"
+          type="text"
+          autocomplete="name"
+          minlength="2"
+          maxlength="80"
+          required
+          aria-describedby={`${id}-name-error`}
+        />
+        <p id={`${id}-name-error`} class={errorClass} aria-live="polite" data-error-for="name"></p>
+      </div>
+
+      <div class="grid gap-5 sm:grid-cols-2">
+        <div>
+          <label class={labelClass} for={`${id}-phone`}>Phone number</label>
+          <!--
+            Deliberately permissive, and the same shape the server enforces: UK
+            numbers get written a dozen ways, and rejecting a real one costs
+            more than accepting an odd one.
+          -->
+          <input
+            id={`${id}-phone`}
+            class={controlClass}
+            name="phone"
+            type="tel"
+            inputmode="tel"
+            autocomplete="tel"
+            pattern="[0-9\s\(\)\+\-]{7,20}"
+            maxlength="20"
+            required
+            aria-describedby={`${id}-phone-error`}
+          />
+          <p
+            id={`${id}-phone-error`}
+            class={errorClass}
+            aria-live="polite"
+            data-error-for="phone"
+          >
+          </p>
+        </div>
+
+        <div>
+          <label class={labelClass} for={`${id}-email`}>Email</label>
+          <!--
+            type="email" alone accepts "jo@localhost", which the server's schema
+            then rejects. The pattern requires a dotted domain, so the two agree
+            about the common case instead of arguing after a round trip.
+          -->
+          <input
+            id={`${id}-email`}
+            class={controlClass}
+            name="email"
+            type="email"
+            inputmode="email"
+            autocomplete="email"
+            pattern="[^@\s]+@[^@\s]+\.[^@\s]{2,}"
+            maxlength="120"
+            required
+            aria-describedby={`${id}-email-error`}
+          />
+          <p
+            id={`${id}-email-error`}
+            class={errorClass}
+            aria-live="polite"
+            data-error-for="email"
+          >
+          </p>
+        </div>
+      </div>
+
+      <!--
+        Radios rather than a second dropdown: four short options, four 44px tap
+        targets, no menu to open. Still one field of the five.
+      -->
+      <fieldset aria-describedby={`${id}-preferredTime-error`}>
+        <legend class={labelClass}>When should we call?</legend>
+        <div class="mt-2 flex flex-wrap gap-2">
+          {
+            PREFERRED_TIMES.map((slot) => (
+              <label class="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border-2 border-line px-3.5 py-2 text-base has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50 has-[:checked]:font-semibold has-[:checked]:text-brand-900">
+                <input
+                  class="size-5 accent-brand-700"
+                  type="radio"
+                  name="preferredTime"
+                  value={slot}
+                  required
+                />
+                {TIME_LABELS[slot]}
+              </label>
+            ))
+          }
+        </div>
+        <p
+          id={`${id}-preferredTime-error`}
+          class={errorClass}
+          aria-live="polite"
+          data-error-for="preferredTime"
+        >
+        </p>
+      </fieldset>
+
+      <div>
+        <label class="flex cursor-pointer items-start gap-3 text-base text-ink">
+          <input
+            id={`${id}-consent`}
+            class="mt-0.5 size-5 shrink-0 accent-brand-700"
+            name="consent"
+            type="checkbox"
+            value="true"
+            required
+            aria-describedby={`${id}-consent-error`}
+          />
+          <span>
+            Yes, contact me about this enquiry. Your details are used for this
+            callback and nothing else.
+          </span>
+        </label>
+        <p
+          id={`${id}-consent-error`}
+          class={errorClass}
+          aria-live="polite"
+          data-error-for="consent"
+        >
+        </p>
+      </div>
+
+      <!--
+        Honeypot. Turnstile needs JavaScript, so the JavaScript-off POST cannot
+        carry a token; this is what stands in for it on that path, alongside the
+        endpoint's rate limit. It is weaker than Turnstile and is not pretending
+        otherwise — it is the price of "form functional with JavaScript
+        disabled" (PRD §2.2).
+      -->
+      <input
+        type="text"
+        name="company"
+        tabindex="-1"
+        autocomplete="off"
+        aria-hidden="true"
+        hidden
+      />
+
+      <!--
+        Bot check (PRD §6.5). Turnstile writes its own hidden input named
+        botToken into this container, so the fetch payload and the plain POST
+        carry the same field names either way.
+
+        The widget's script is NOT loaded with the page. Measured on the built
+        site, loading it up front cost 125 KB of transfer and 505 ms of main
+        thread blocking — five times the whole rest of the page — to guard a
+        form the reader has not reached yet. The island below fetches it when
+        the form nears the viewport, or on first focus, whichever comes first.
+        The container is inert until then and Turnstile renders into it
+        implicitly the moment the script arrives.
+      -->
+      {
+        turnstileSiteKey && (
+          <div
+            class="cf-turnstile"
+            data-sitekey={turnstileSiteKey}
+            data-response-field-name="botToken"
+            data-action="enquiry"
+            data-bot-check
+          />
+        )
+      }
+
+      <div class="mt-1">
+        <button type="submit" class="u-btn u-btn-primary w-full sm:w-auto sm:min-w-64">
+          <span data-submit-label>Request a callback</span>
+        </button>
+
+        <!--
+          Submission state and failure message. Announced politely rather than
+          asserted, because the reader's focus is already on the button they
+          just pressed. Kept out of `display:none` for the same reason as the
+          field slots above.
+        -->
+        <p
+          class="text-sm font-medium text-urgent-700 [&:not(:empty)]:mt-3"
+          role="status"
+          aria-live="polite"
+          data-enquiry-status
+        >
+        </p>
+
+        <!-- The phone number is the fallback in both states (PRD §5.1 step 8). -->
+        <p class="mt-3 text-sm text-muted">
+          Prefer to talk? Call
+          <a
+            href={telHref(phone.e164)}
+            class="font-semibold text-brand-700 underline underline-offset-2"
+          >
+            {phone.display}
+          </a>.
+        </p>
+      </div>
+    </form>
+  </div>
+</section>
+
+<script>
+  import { asTreatmentSlug, onTreatmentInterest } from '../lib/store';
+
+  const form = document.querySelector<HTMLFormElement>('[data-enquiry-form]');
+  const confirmation = document.querySelector<HTMLElement>('[data-enquiry-confirmation]');
+  const status = form?.querySelector<HTMLElement>('[data-enquiry-status]');
+  const submit = form?.querySelector<HTMLButtonElement>('button[type="submit"]');
+  const submitLabel = form?.querySelector<HTMLElement>('[data-submit-label]');
+
+  if (form && confirmation && status && submit && submitLabel) {
+    const IDLE_LABEL = submitLabel.textContent ?? 'Request a callback';
+
+    const FIELDS = [
+      'treatmentSlug',
+      'name',
+      'phone',
+      'email',
+      'preferredTime',
+      'consent',
+    ] as const;
+    type FieldName = (typeof FIELDS)[number];
+    type Control = HTMLInputElement | HTMLSelectElement;
+
+    /**
+     * One sentence per way a field can be wrong. The browser knows *that* a
+     * value fails; it does not know how this page prefers to say so, and
+     * "Please match the requested format" tells a nervous reader nothing.
+     * Anything unlisted falls back to the browser's own message, which is at
+     * least localised.
+     */
+    const MESSAGES: Record<FieldName, Partial<Record<string, string>>> = {
+      treatmentSlug: { valueMissing: 'Choose the treatment you are interested in' },
+      name: { valueMissing: 'Enter your name', tooShort: 'Enter your name' },
+      phone: {
+        valueMissing: 'Enter a phone number we can call you back on',
+        patternMismatch: 'Use digits, spaces, and + ( ) - only',
+      },
+      email: {
+        valueMissing: 'Enter your email address',
+        typeMismatch: 'Enter a valid email address',
+        patternMismatch: 'Enter a valid email address',
+      },
+      preferredTime: { valueMissing: 'Choose when we should call' },
+      consent: {
+        valueMissing: 'We need your permission to contact you about this enquiry',
+      },
+    };
+
+    /** The controls carrying one field — one, or four in the case of radios. */
+    const controlsFor = (name: FieldName): Control[] =>
+      Array.from(form.querySelectorAll<Control>(`[name="${name}"]`));
+
+    const slotFor = (name: FieldName) =>
+      form.querySelector<HTMLElement>(`[data-error-for="${name}"]`);
+
+    /** Which ValidityState flag is set, if any. */
+    const failureOf = (control: Control): string | null => {
+      const validity = control.validity;
+      for (const key of [
+        'valueMissing',
+        'typeMismatch',
+        'patternMismatch',
+        'tooShort',
+        'tooLong',
+        'badInput',
+      ] as const) {
+        if (validity[key]) return key;
+      }
+      return validity.valid ? null : 'customError';
+    };
+
+    /** Write a message against a field, or clear it. */
+    const paint = (name: FieldName, message: string | null): void => {
+      const slot = slotFor(name);
+      if (slot) slot.textContent = message ?? '';
+      for (const control of controlsFor(name)) {
+        if (message) control.setAttribute('aria-invalid', 'true');
+        else control.removeAttribute('aria-invalid');
+      }
+    };
+
+    /**
+     * Check one field against its own markup. A radio group is valid when any
+     * member is, so it passes unless every control in it fails.
+     */
+    const validateField = (name: FieldName, showError: boolean): boolean => {
+      const broken = controlsFor(name).find((control) => !control.validity.valid);
+
+      if (!broken) {
+        paint(name, null);
+        return true;
+      }
+
+      if (showError) {
+        const key = failureOf(broken);
+        paint(name, (key && MESSAGES[name][key]) || broken.validationMessage);
+      }
+      return false;
+    };
+
+    /**
+     * Native reporting and ours would otherwise both fire, and the browser's
+     * bubble would cover the inline message. Switched off here rather than in
+     * the markup, so the JavaScript-off form keeps it. `control.validity` is
+     * unaffected — noValidate suppresses the browser's reporting, not its
+     * constraint evaluation.
+     */
+    form.noValidate = true;
+
+    // Validate on blur, never on keystroke: telling someone their email address
+    // is invalid while they are still typing it is not help (PRD F8).
+    for (const name of FIELDS) {
+      for (const control of controlsFor(name)) {
+        control.addEventListener('blur', (event) => {
+          // Moving between the four radios of one group is not leaving it.
+          const next = (event as FocusEvent).relatedTarget;
+          if (next instanceof HTMLElement && next.getAttribute('name') === name) return;
+          validateField(name, true);
+        });
+
+        // Once a field is marked wrong, fixing it clears the mark straight away
+        // rather than waiting for another blur.
+        const recheck = () => {
+          if (control.getAttribute('aria-invalid')) validateField(name, true);
+        };
+        control.addEventListener('change', recheck);
+        control.addEventListener('input', recheck);
+      }
+    }
+
+    /* ---------------------------------------------------------------------
+     * Pre-fill (PRD §5.1 step 7)
+     * ------------------------------------------------------------------ */
+    const treatmentSelect = form.elements.namedItem('treatmentSlug') as HTMLSelectElement;
+
+    // A reader who has chosen for themselves is never overruled by a card they
+    // happen to open afterwards.
+    onTreatmentInterest((slug) => {
+      if (treatmentSelect.value === '') treatmentSelect.value = slug;
+    });
+
+    // Deep link straight to #treatment-all-on-4: no card has fired a toggle
+    // yet, so read the hash directly.
+    const fromHash = asTreatmentSlug(location.hash.replace(/^#treatment-/, ''));
+    if (fromHash && treatmentSelect.value === '') treatmentSelect.value = fromHash;
+
+    /* ---------------------------------------------------------------------
+     * Bot check, loaded late (PRD §6.5)
+     *
+     * Turnstile's api.js is 125 KB of transfer and ~500 ms of main-thread work
+     * on a throttled mobile profile. Loading it with the page pays all of that
+     * before the reader has scrolled past the hero, to protect a form most
+     * readers never submit. So it is fetched on the first of two signals:
+     * the form coming within a screen of the viewport, or anything inside it
+     * taking focus. Both give it seconds of lead time over the earliest
+     * possible submit, and `tokenReady()` below covers the case where they do
+     * not.
+     * ------------------------------------------------------------------ */
+    const botContainer = form.querySelector<HTMLElement>('[data-bot-check]');
+
+    /** Resolves when api.js has loaded; rejects if it cannot be reached. */
+    let botScript: Promise<void> | null = null;
+
+    const loadBotCheck = (): Promise<void> => {
+      if (!botContainer) return Promise.resolve();
+      botScript ??= new Promise<void>((resolve, reject) => {
+        const element = document.createElement('script');
+        element.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+        element.async = true;
+        element.defer = true;
+        element.addEventListener('load', () => resolve());
+        element.addEventListener('error', () => reject(new Error('turnstile')));
+        document.head.append(element);
+      });
+      return botScript;
+    };
+
+    if (botContainer) {
+      // Focus is the strongest signal that a submit is coming, and it costs
+      // nothing to listen for.
+      form.addEventListener('focusin', () => void loadBotCheck().catch(() => {}), {
+        once: true,
+      });
+
+      // A screen of lead time. Where IntersectionObserver is missing, focus
+      // alone still covers it — nobody submits a form without focusing it.
+      if ('IntersectionObserver' in window) {
+        const observer = new IntersectionObserver(
+          (entries) => {
+            if (!entries.some((entry) => entry.isIntersecting)) return;
+            observer.disconnect();
+            void loadBotCheck().catch(() => {});
+          },
+          { rootMargin: '600px 0px' },
+        );
+        observer.observe(form);
+      }
+    }
+
+    /**
+     * The token the widget writes into the form, waiting for it if the reader
+     * beat the script to the submit button. Gives up after a few seconds and
+     * lets the request go without one — the endpoint will answer 403 and the
+     * reader gets a message and a phone number, which is a better outcome than
+     * a button that appears to do nothing.
+     */
+    const tokenReady = async (): Promise<void> => {
+      if (!botContainer) return;
+
+      try {
+        await loadBotCheck();
+      } catch {
+        return;
+      }
+
+      const deadline = Date.now() + 6000;
+      while (Date.now() < deadline) {
+        const field = form.querySelector<HTMLInputElement>('[name="botToken"]');
+        if (field?.value) return;
+        await new Promise((resolve) => setTimeout(resolve, 120));
+      }
+    };
+
+    /* ---------------------------------------------------------------------
+     * Submit (PRD §5.1 step 8)
+     * ------------------------------------------------------------------ */
+    const isFieldName = (value: string): value is FieldName =>
+      (FIELDS as readonly string[]).includes(value);
+
+    /** Turnstile tokens are single-use; a retry needs a fresh one. */
+    const resetBotCheck = () => {
+      const api = (window as unknown as { turnstile?: { reset: () => void } }).turnstile;
+      try {
+        api?.reset();
+      } catch {
+        // A widget that will not reset is the endpoint's problem to report,
+        // not a reason to break the retry.
+      }
+    };
+
+    let sending = false;
+
+    const release = () => {
+      sending = false;
+      submit.disabled = false;
+      submit.removeAttribute('aria-busy');
+      submitLabel.textContent = IDLE_LABEL;
+    };
+
+    const FAILED =
+      'Sorry — that did not send. Please try again, or call us on the number below.';
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (sending) return;
+
+      const invalid = FIELDS.filter((name) => !validateField(name, true));
+      if (invalid.length > 0) {
+        status.textContent =
+          invalid.length === 1
+            ? 'One answer needs checking before we can send this.'
+            : `${invalid.length} answers need checking before we can send this.`;
+        controlsFor(invalid[0]!)[0]?.focus();
+        return;
+      }
+
+      sending = true;
+      submit.disabled = true;
+      submit.setAttribute('aria-busy', 'true');
+      submitLabel.textContent = 'Sending…';
+      status.textContent = '';
+
+      try {
+        // Almost always already resolved: the widget has had since the form
+        // scrolled into view. This is the seam for the reader who tabbed
+        // straight to it and typed fast.
+        await tokenReady();
+
+        const entries = Object.fromEntries(new FormData(form)) as Record<string, unknown>;
+        const response = await fetch(form.action, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ ...entries, consent: entries.consent === 'true' }),
+        });
+
+        if (response.ok) {
+          form.hidden = true;
+          confirmation.hidden = false;
+          confirmation.focus();
+          return;
+        }
+
+        // The server is the authority on what is valid. When it names fields,
+        // its messages go into the same slots the browser's would have.
+        const body = (await response.json().catch(() => null)) as {
+          message?: string;
+          errors?: Record<string, string>;
+        } | null;
+
+        let firstBad: FieldName | null = null;
+        for (const [field, message] of Object.entries(body?.errors ?? {})) {
+          if (!isFieldName(field)) continue;
+          paint(field, message);
+          firstBad ??= field;
+        }
+
+        status.textContent = body?.message ?? FAILED;
+        resetBotCheck();
+        release();
+        if (firstBad) controlsFor(firstBad)[0]?.focus();
+      } catch {
+        // Failure leaves the form and every answer in it untouched, and points
+        // at the phone number sitting under the button.
+        status.textContent = FAILED;
+        resetBotCheck();
+        release();
+      }
+    });
+  }
+</script>

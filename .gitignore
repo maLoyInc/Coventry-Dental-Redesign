@@ -1,0 +1,36 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+.astro/
+.vercel/
+
+# secrets — never commit
+.env
+.env.*
+!.env.example
+!.env.test
+
+# cloudflare
+.wrangler/
+dist/server/.dev.vars
+
+# test artefacts
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+.lighthouseci/
+lighthouse-report*
+
+# editor and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# logs
+*.log
+npm-debug.log*

@@ -1,0 +1,41 @@
+{
+  "name": "coventry-dental-landing",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro check && astro build",
+    "build:only": "astro build",
+    "preview": "astro preview",
+    "check": "astro check",
+    "test:e2e": "astro build && playwright test",
+    "test:e2e:only": "playwright test",
+    "lhci": "node scripts/lighthouse-ci.mjs",
+    "lh:url": "node scripts/lighthouse-url.mjs",
+    "verify": "npm run build && npm run lhci && npm run test:e2e:only",
+    "deploy": "npm run verify && wrangler deploy --config dist/server/wrangler.json"
+  },
+  "dependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@astrojs/cloudflare": "^14.3.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "astro": "^7.3.1",
+    "resend": "^6.26.0",
+    "sharp": "^0.35.4",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^6.0.3",
+    "zod": "^4.5.4"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "esbuild@0.28.1": true,
+    "workerd@1.20260903.1": true
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@lhci/cli": "^0.15.1",
+    "@playwright/test": "^1.63.0",
+    "lighthouse": "^12.8.2"
+  }
+}

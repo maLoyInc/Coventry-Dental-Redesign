@@ -1,0 +1,126 @@
+---
+/**
+ * Hero — PRD F1, §3.2, §5.1 step 1.
+ *
+ * Names the treatment category, the clinician and the location before any
+ * scroll, which is the whole job: a comparison shopper who cannot tell what
+ * this practice does, who runs it, or where it is has nothing to compare.
+ *
+ * The <h1> is the LCP element, which PRD §2.2 permits explicitly and which no
+ * image can beat — it is already in the HTML. The `image` prop stays optional
+ * so the hero can be rendered text-only; the page passes the treatment-room
+ * photograph, which loads eagerly beside the copy.
+ */
+import { Image } from 'astro:assets';
+import PhoneIcon from './PhoneIcon.astro';
+import { telHref } from '../lib/format';
+import type { ImageRef } from '../lib/types';
+
+interface Props {
+  clinicianName: string;
+  yearsInPractice: number;
+  /** "Coventry". Used in the headline, not just the footer. */
+  locality: string;
+  phone: { e164: string; display: string };
+  bookHref: string;
+  treatmentsHref: string;
+  /** Optional. When absent the hero is text-led and ships no image at all. */
+  image?: ImageRef;
+}
+
+const {
+  clinicianName,
+  yearsInPractice,
+  locality,
+  phone,
+  bookHref,
+  treatmentsHref,
+  image,
+} = Astro.props;
+---
+
+<section
+  id="top"
+  class="border-b border-line bg-gradient-to-b from-brand-50 to-paper"
+>
+  <div class="u-container grid gap-8 py-10 md:py-16 lg:grid-cols-12 lg:items-center lg:gap-12">
+    <div class={image ? 'lg:col-span-7' : 'lg:col-span-8'}>
+      <p
+        class="mb-3 text-sm font-semibold uppercase tracking-[0.08em] text-brand-600"
+      >
+        Dental implants in {locality}
+      </p>
+
+      <h1 class="text-[2rem] font-bold text-brand-900 md:text-5xl lg:text-[3.25rem]">
+        Missing teeth replaced properly, by a dentist who has
+        done it for {yearsInPractice} years.
+      </h1>
+
+      <p class="mt-5 max-w-prose text-lg text-muted">
+        Single implants, full-arch All-on-4, Invisalign and cosmetic work — all
+        planned and placed by {clinicianName} at our {locality} practice. You
+        get a written plan and a price before anything is booked.
+      </p>
+
+      <!-- F1: both actions sit in the first viewport at every breakpoint.
+           Book is the primary path; Call is the emergency one and dials
+           directly rather than scrolling to a form (PRD §5.2 step 1).
+           data-sticky-sentinel is StickyCta's trigger: the mobile bar appears
+           when this row leaves the viewport, so the same two actions are never
+           on screen twice. -->
+      <div
+        class="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap"
+        data-sticky-sentinel
+      >
+        <a href={bookHref} class="u-btn u-btn-primary sm:min-w-56">
+          Book a consultation
+        </a>
+        <!-- No aria-label. The visible text is already a complete label, and
+             an accessible name that inserts words into the middle of it
+             ("Call the practice on 024...") breaks WCAG 2.2 AA 2.5.3 Label in
+             Name: someone driving the page by voice says what they can see. -->
+        <a href={telHref(phone.e164)} class="u-btn u-btn-secondary">
+          <PhoneIcon />
+          Call {phone.display}
+        </a>
+      </div>
+
+      <ul
+        class="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm font-medium text-brand-800"
+      >
+        <li>{yearsInPractice}+ years in practice</li>
+        <li>Named lead clinician</li>
+        <li>Finance available</li>
+        <li>
+          <a href={treatmentsHref} class="text-brand-700 underline underline-offset-2">
+            See the four treatments
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    {
+      image && (
+        <div class="lg:col-span-5">
+          {/*
+            The container pads 1.25rem, and 2rem from 768px up, so a bare
+            100vw overstates the slot by 40-64px. At a 412px viewport that was
+            enough to push the browser past the 720w candidate and fetch the
+            960w one into a 372px box - 22 KiB wasted on the LCP image.
+          */}
+          <Image
+            src={image.src}
+            alt={image.alt}
+            widths={[480, 720, 960]}
+            width={960}
+            sizes="(min-width: 1024px) 40vw, (min-width: 768px) calc(100vw - 4rem), calc(100vw - 2.5rem)"
+            loading="eager"
+            fetchpriority="high"
+            decoding="sync"
+            class="w-full rounded-xl border border-line object-cover"
+          />
+        </div>
+      )
+    }
+  </div>
+</section>

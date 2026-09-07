@@ -1,0 +1,30 @@
+{
+  // Bindings the Astro adapter cannot know about.
+  //
+  // @astrojs/cloudflare generates dist/server/wrangler.json on every build, and
+  // the Cloudflare Vite plugin merges this file into it. Editing the generated
+  // one directly would work exactly once — the next build overwrites it.
+  //
+  // Deployed shape: Astro 7 / adapter 14 emit a Worker with a static-assets
+  // binding, not a Pages Functions bundle, so this deploys with
+  // `wrangler deploy` and lands on a workers.dev subdomain. That is the
+  // Cloudflare-hosted preview domain for this generation of the adapter; the
+  // rule it has to satisfy is PRD §4 — never the practice's real domain.
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "coventry-dental-concept",
+  "compatibility_date": "2026-09-03",
+
+  "kv_namespaces": [
+    {
+      // The rate limiter for /api/enquiry (PRD §6.4). Unbound, lib/rate-limit.ts
+      // falls back to a per-isolate Map and logs a warning — which is a dev
+      // convenience, not a limit: Cloudflare runs many isolates and each gets
+      // its own empty Map, so an unbound namespace in production is a
+      // deployment mistake rather than a weaker setting.
+      //
+      // `id` is filled in by `wrangler kv namespace create ENQUIRY_RATE_LIMIT`.
+      "binding": "ENQUIRY_RATE_LIMIT",
+      "id": "aa54c4de4e514fcdbcd858e43a230a4c"
+    }
+  ]
+}

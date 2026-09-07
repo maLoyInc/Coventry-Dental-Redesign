@@ -1,0 +1,127 @@
+---
+/**
+ * Footer — PRD F10, F11, §1.1.
+ *
+ * The original's "copyright 2023" is the failure this replaces: on a page
+ * whose job is to prove the practice is operating, a stale year is evidence on
+ * the wrong side. The year here is resolved at build, and the build runs on
+ * every push.
+ *
+ * The disclaimer is repeated in full rather than referred back to, because the
+ * footer is where anyone checking who made this looks first.
+ */
+import { telHref } from '../lib/format';
+
+interface Props {
+  practiceName: string;
+  wordmark: string;
+  phone: { e164: string; display: string };
+  email: string;
+  address: {
+    street: string;
+    locality: string;
+    postalCode: string;
+  };
+  directionsUrl: string;
+  /** Anchors repeated from the header, so the page end is not a dead end. */
+  nav: { href: string; label: string }[];
+}
+
+const {
+  practiceName,
+  wordmark,
+  phone,
+  email,
+  address,
+  directionsUrl,
+  nav,
+} = Astro.props;
+
+const year = new Date().getFullYear();
+---
+
+<footer class="on-dark bg-brand-900 text-brand-100">
+  <div class="u-container py-12 md:py-16">
+    <div class="grid gap-10 md:grid-cols-12">
+      <div class="md:col-span-5">
+        <p class="text-xl font-bold text-white">{wordmark}</p>
+        <p class="mt-2 text-sm leading-relaxed text-brand-200">
+          A concept redesign of the landing page for {practiceName}.
+        </p>
+
+        <address class="mt-5 text-sm not-italic leading-relaxed">
+          {address.street}<br />
+          {address.locality} {address.postalCode}
+        </address>
+
+        <ul class="mt-4 space-y-1.5 text-sm">
+          <li>
+            <a href={telHref(phone.e164)} class="text-white underline underline-offset-2">
+              {phone.display}
+            </a>
+          </li>
+          <li>
+            <a href={`mailto:${email}`} class="text-white underline underline-offset-2">
+              {email}
+            </a>
+          </li>
+          <li>
+            <a
+              href={directionsUrl}
+              class="text-white underline underline-offset-2"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Get directions<span class="sr-only"> (opens in a new tab)</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <nav class="md:col-span-3" aria-label="Footer">
+        <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-brand-300">
+          On this page
+        </h2>
+        <ul class="mt-3 space-y-1">
+          {
+            nav.map((item) => (
+              <li>
+                <a
+                  href={item.href}
+                  class="inline-flex min-h-11 items-center text-sm text-brand-100 no-underline hover:text-white hover:underline"
+                >
+                  {item.label}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </nav>
+
+      <div class="md:col-span-4">
+        <h2 class="text-sm font-semibold uppercase tracking-[0.08em] text-brand-300">
+          About this concept
+        </h2>
+        <p class="mt-3 text-sm leading-relaxed text-brand-200">
+          Unsolicited, independent portfolio piece. Not commissioned, reviewed,
+          or endorsed by the practice or any related party. No brand marks or
+          media logos are reproduced, and no photograph of the clinician
+          appears. All photography is licensed stock, all testimonials are
+          invented, and opening hours are indicative. Practice name, address,
+          phone and treatment prices are reproduced factually from public
+          sources.
+        </p>
+        <p class="mt-3 text-sm">
+          <a href="/CREDITS.md" class="text-white underline underline-offset-2">
+            Image credits and licences
+          </a>
+        </p>
+      </div>
+    </div>
+
+    <p class="mt-10 border-t border-brand-800 pt-6 text-xs text-brand-300">
+      © {year} — concept design. {practiceName} is a real practice; this page is
+      not theirs.
+    </p>
+  </div>
+</footer>

@@ -1,0 +1,91 @@
+---
+/**
+ * BaseLayout — the document shell.
+ *
+ * Holds only what belongs to the page rather than to any one section: the
+ * head, the skip link, and the landmark structure. No component below this
+ * writes to <head>.
+ */
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description: string;
+  /** Where the skip link jumps to. */
+  mainId?: string;
+  /**
+   * Absolute URL of the share image. Optional: without one, the card type
+   * drops to `summary`, because `summary_large_image` with nothing to show
+   * renders as a blank slab in every client that honours it.
+   */
+  ogImage?: string;
+}
+
+const { title, description, mainId = 'main', ogImage } = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+---
+
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical.href} />
+
+    <!-- Declared, so the browser stops probing /favicon.ico and logging a 404
+         against a page that has no such file. A neutral mark, not the
+         practice's logo (PRD §2.3). -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta name="theme-color" content="#1f4955" />
+
+    <!-- Unsolicited concept for a real practice. It must not be indexed and
+         must not compete with the practice's own site (PRD §2.3, §4). -->
+    <meta name="robots" content="noindex, nofollow" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical.href} />
+    {ogImage && <meta property="og:image" content={ogImage} />}
+    <meta
+      name="twitter:card"
+      content={ogImage ? 'summary_large_image' : 'summary'}
+    />
+
+    <slot name="head" />
+  </head>
+
+  <body>
+    <!-- First tab stop, visible the moment it takes focus (PRD §2.2). -->
+    <a
+      href={`#${mainId}`}
+      class="sr-only focus:not-sr-only focus:absolute focus:start-4 focus:top-4 focus:z-50 focus:inline-flex focus:min-h-11 focus:items-center focus:rounded-lg focus:bg-brand-900 focus:px-4 focus:text-white focus:no-underline"
+    >
+      Skip to main content
+    </a>
+
+    <slot name="banner" />
+    <slot name="header" />
+
+    <!--
+      tabindex="-1" is what makes the skip link above actually skip. Without
+      it the browser scrolls to <main> but leaves focus on <body>, so the next
+      Tab goes straight back into the header the reader just asked to bypass —
+      the link looks like it works and does nothing (WCAG 2.2 AA 2.4.1).
+      Found by a Playwright keyboard test, not by an audit tool: axe and
+      Lighthouse both see a skip link pointing at a real target and pass it.
+
+      Not a tab stop — a negative index is programmatic focus only — and it
+      takes no focus ring, because :focus-visible does not match a
+      programmatically focused element.
+    -->
+    <main id={mainId} tabindex="-1">
+      <slot />
+    </main>
+
+    <slot name="footer" />
+    <slot name="sticky" />
+  </body>
+</html>

@@ -1,0 +1,19 @@
+<!--
+  Neutral wordmark mark, not the practice's logo (PRD §2.3). Initials of the
+  wordmark on the brand teal. An SVG rather than an .ico because it is 300
+  bytes, scales to every size a browser asks for, and — declared in <head> —
+  stops the browser probing /favicon.ico and logging a 404.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Coventry Dental concept">
+  <rect width="64" height="64" rx="14" fill="#1f4955"/>
+  <text
+    x="32"
+    y="42.5"
+    text-anchor="middle"
+    font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif"
+    font-size="28"
+    font-weight="700"
+    letter-spacing="-0.5"
+    fill="#ffffff"
+  >CD</text>
+</svg>

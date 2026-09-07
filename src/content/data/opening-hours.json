@@ -1,0 +1,32 @@
+{
+  "practice": {
+    "timezone": "Europe/London",
+    "isPlaceholder": true,
+    "sourceNote": "PLACEHOLDER HOURS. The live coventrydental.co.uk site does not publish opening hours anywhere — this is a gap in the original, not a detail omitted here. The times below are invented and must be rendered on the page with a visible 'indicative, to be confirmed' label. Replace with the real hours before this is shown to anyone as anything other than a concept.",
+    "regular": [
+      { "day": "monday", "closed": false, "opens": "09:00", "closes": "17:30" },
+      { "day": "tuesday", "closed": false, "opens": "09:00", "closes": "17:30" },
+      { "day": "wednesday", "closed": false, "opens": "09:00", "closes": "17:30" },
+      { "day": "thursday", "closed": false, "opens": "09:00", "closes": "19:00" },
+      { "day": "friday", "closed": false, "opens": "09:00", "closes": "16:00" },
+      { "day": "saturday", "closed": false, "opens": "09:00", "closes": "13:00" },
+      { "day": "sunday", "closed": true }
+    ],
+    "exceptions": [
+      {
+        "date": "2026-12-25",
+        "closed": true,
+        "note": "Placeholder exception — Christmas Day"
+      },
+      {
+        "date": "2026-12-31",
+        "closed": false,
+        "opens": "09:00",
+        "closes": "13:00",
+        "note": "Placeholder exception — New Year's Eve, early close"
+      }
+    ],
+    "emergencyNote": "Placeholder guidance. Outside these hours, call the practice number for the emergency message. If you cannot reach us and you are in pain, call NHS 111.",
+    "phone": "+442476454350"
+  }
+}

@@ -1,0 +1,148 @@
+---
+/**
+ * ClinicianBlock — PRD F6, §3.4, §5.1 step 4.
+ *
+ * The strongest asset the business has, currently delivered through a broken
+ * logo strip. Here the press coverage is plain text and always renders, which
+ * is the point: a credibility claim that fails to load is worse than one that
+ * was never made.
+ *
+ * `render()` is called on the entry this component was handed — it reads the
+ * body of a prop, it does not go and find its own data (PRD §6.3).
+ */
+import { render, type CollectionEntry } from 'astro:content';
+
+interface Props {
+  id: string;
+  clinician: CollectionEntry<'team'>;
+}
+
+const { id, clinician } = Astro.props;
+const { name, role, gdcNumber, yearsInPractice, qualifications, mediaMentions } =
+  clinician.data;
+
+const { Content } = await render(clinician);
+
+/**
+ * "Dr Jag Shergill" → "JS". Honorifics dropped, then the first letter of the
+ * first and last remaining words.
+ *
+ * Derived rather than typed into the frontmatter: the initials and the heading
+ * are the same name, so they cannot disagree.
+ */
+const HONORIFICS = new Set(['dr', 'dr.', 'mr', 'mr.', 'mrs', 'ms', 'miss', 'prof', 'prof.']);
+const words = name
+  .split(/\s+/)
+  .filter((word) => !HONORIFICS.has(word.toLowerCase()));
+const initials = (words.length > 1 ? [words[0]!, words.at(-1)!] : words)
+  .map((word) => word[0]!.toUpperCase())
+  .join('');
+
+// PRD §2.3: media logos are not reproduced, so the claim is made as a
+// sentence. Where the outlet itself is a stand-in, the block says so rather
+// than presenting an invented appearance as fact.
+const hasVerifiedMention = mediaMentions.some((mention) => !mention.isPlaceholder);
+---
+
+<section id={id} class="u-section bg-sand" aria-labelledby={`${id}-heading`}>
+  <div class="u-container grid gap-8 md:gap-12 lg:grid-cols-12">
+    <div class="lg:col-span-4">
+      <!--
+        A monogram, not a photograph and not an image file.
+
+        The alternative was a stock face, which is what PRD §2.3 originally
+        asked for. Under the name of a real, identifiable dentist that is a
+        picture of somebody else presented as him, and a "stock placeholder"
+        caption underneath does not undo the first impression. So the slot says
+        what is true — there is no photograph of this person here.
+
+        Rendered as text in a box: no request, no bytes, no licence to record,
+        nothing to go stale, and it scales to any size without a second file.
+        aria-hidden because the letters are the heading's own initials and a
+        screen reader has just read the whole name; the sentence below carries
+        the only part a reader cannot see for themselves.
+      -->
+      <div
+        class="flex aspect-square w-full max-w-xs items-center justify-center rounded-xl border border-line bg-sand"
+        aria-hidden="true"
+      >
+        <span
+          class="text-6xl font-bold tracking-[0.05em] text-muted select-none"
+        >
+          {initials}
+        </span>
+      </div>
+      <p class="mt-3 max-w-xs text-xs leading-relaxed text-muted">
+        <span class="u-placeholder-tag text-muted">No portrait</span>
+        <span class="mt-2 block">
+          Initials, not a photograph. A stock face under a real clinician's
+          name would show someone who is not him.
+        </span>
+      </p>
+    </div>
+
+    <div class="lg:col-span-8">
+      <h2
+        id={`${id}-heading`}
+        class="text-3xl font-bold text-brand-900 md:text-4xl"
+      >
+        {name}
+      </h2>
+      <p class="mt-1 text-lg text-muted">
+        {role} · {yearsInPractice} years in practice
+      </p>
+
+      <div
+        class="mt-6 max-w-prose space-y-4 text-base text-ink [&_p]:leading-relaxed"
+      >
+        <Content />
+      </div>
+
+      <div class="mt-8 grid gap-8 sm:grid-cols-2">
+        <div>
+          <h3 class="text-sm font-semibold uppercase tracking-[0.08em] text-brand-600">
+            Qualifications
+          </h3>
+          <ul class="mt-3 space-y-1.5 text-base">
+            {qualifications.map((item) => <li>{item}</li>)}
+          </ul>
+          {
+            gdcNumber && (
+              <p class="mt-3 text-sm text-muted">GDC number {gdcNumber}</p>
+            )
+          }
+        </div>
+
+        <div>
+          <h3 class="text-sm font-semibold uppercase tracking-[0.08em] text-brand-600">
+            Media coverage
+          </h3>
+          <p class="mt-3 text-base">
+            {
+              hasVerifiedMention
+                ? 'As featured in the national press.'
+                : 'The practice states it has national media coverage.'
+            }
+          </p>
+          <ul class="mt-3 space-y-3 text-sm text-muted">
+            {
+              mediaMentions.map((mention) => (
+                <li>
+                  <span class="font-semibold text-ink">
+                    {mention.outlet}, {mention.year}
+                  </span>
+                  {mention.isPlaceholder && (
+                    <span class="u-placeholder-tag ms-2 align-middle text-muted">
+                      Unverified
+                    </span>
+                  )}
+                  <span class="mt-1 block">{mention.description}</span>
+                </li>
+              ))
+            }
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

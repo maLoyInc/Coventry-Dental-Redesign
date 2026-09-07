@@ -1,0 +1,26 @@
+{
+  "does-it-hurt": {
+    "question": "Does having an implant hurt?",
+    "answer": "The placement itself is done under local anaesthetic, so you feel pressure rather than pain. Most people describe the days afterwards as similar to having a tooth out — sore for two to three days and manageable with ordinary painkillers. Sedation is available if anxiety, rather than pain, is the part you are dreading.",
+    "topic": "pain",
+    "order": 1
+  },
+  "what-does-it-cost": {
+    "question": "What does treatment actually cost?",
+    "answer": "A single implant starts from £2,500 and a full arch from £12,000. Those are indicative from-prices: the figure you are quoted comes after an assessment, and it is given in writing before anything is booked. Finance is available so the cost can be spread rather than paid in one go.",
+    "topic": "cost",
+    "order": 2
+  },
+  "how-long-does-it-take": {
+    "question": "How long does the whole process take?",
+    "answer": "Three to six months for most implant cases, but that is mostly healing time rather than appointments — you are typically in the chair three or four times. For full-arch treatment a fixed temporary bridge is usually fitted on the day the implants are placed, so you are not left without teeth while healing happens.",
+    "topic": "duration",
+    "order": 3
+  },
+  "how-long-do-they-last": {
+    "question": "How long do dental implants last?",
+    "answer": "The implant itself is designed to be permanent, and long-term studies report the large majority still in place after ten years. The crown or bridge on top is the part that wears and may need replacing sooner. Both depend on cleaning and regular check-ups, in the same way natural teeth do.",
+    "topic": "longevity",
+    "order": 4
+  }
+}
